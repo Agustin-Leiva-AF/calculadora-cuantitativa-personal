@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terminal de Análisis Cuantitativo Personal</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-base: #09090b;
+            --bg-card: #18181b;
+            --bg-input: #27272a;
+            --text-main: #f4f4f5;
+            --text-muted: #a1a1aa;
+            --accent: #3b82f6; 
+            --accent-hover: #2563eb;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --border: #3f3f46;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+
+        body { background-color: var(--bg-base); color: var(--text-main); padding: 20px; display: flex; justify-content: center; }
+
+        .app-container { max-width: 1200px; width: 100%; display: flex; flex-direction: column; gap: 20px; }
+
+        /* Header / Resumen */
+        .summary-header { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+        .summary-card { background-color: var(--bg-card); padding: 20px; border-radius: 10px; border: 1px solid var(--border); border-left: 4px solid var(--accent); }
+        .summary-card span { display: block; color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; font-weight: 600; margin-bottom: 5px;}
+        .summary-card h2 { font-size: 1.8rem; font-weight: 700; margin-bottom: 5px;}
+        .summary-card .sub-metric { font-size: 0.8rem; color: var(--text-muted); }
+
+        /* Pestañas */
+        .tabs { display: flex; background-color: var(--bg-card); border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+        .tab-btn { flex: 1; padding: 14px; background: none; border: none; color: var(--text-muted); cursor: pointer; font-weight: 600; transition: 0.2s; border-bottom: 2px solid transparent; }
+        .tab-btn:hover { color: var(--text-main); background-color: rgba(255,255,255,0.03); }
+        .tab-btn.active { color: var(--accent); border-bottom: 2px solid var(--accent); background-color: rgba(59, 130, 246, 0.1); }
+
+        .tab-content { display: none; background-color: var(--bg-card); padding: 25px; border-radius: 10px; border: 1px solid var(--border); }
+        .tab-content.active { display: block; animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Formularios y Listas dinámicas */
+        .dynamic-list { list-style: none; margin-bottom: 15px; }
+        .dynamic-item { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; background-color: var(--bg-input); padding: 10px; border-radius: 8px; border: 1px solid transparent; transition: border 0.2s; }
+        .dynamic-item:hover { border-color: var(--border); }
+        
+        input[type="text"], input[type="number"] { flex: 1; background-color: var(--bg-base); border: 1px solid var(--border); color: var(--text-main); padding: 10px; border-radius: 6px; outline: none; font-size: 0.95rem; }
+        input[type="text"]:focus, input[type="number"]:focus { border-color: var(--accent); }
+        
+        button.btn-add { background-color: transparent; color: var(--text-main); border: 1px dashed var(--border); padding: 12px; width: 100%; border-radius: 6px; cursor: pointer; transition: 0.2s; font-weight: 600; }
+        button.btn-add:hover { border-color: var(--accent); color: var(--accent); }
+        button.btn-remove { background: none; border: none; color: var(--danger); cursor: pointer; font-size: 1.2rem; padding: 0 10px; opacity: 0.7; }
+        button.btn-remove:hover { opacity: 1; }
+
+        /* Layouts de Grillas */
+        .grid-layout { display: grid; grid-template-columns: 300px 1fr; gap: 25px; }
+        @media (max-width: 900px) { .grid-layout { grid-template-columns: 1fr; } }
+        
+        .panel-inputs { display: flex; flex-direction: column; gap: 15px; background-color: var(--bg-input); padding: 20px; border-radius: 8px; }
+        .panel-inputs label { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 5px; display: block; font-weight: 600; }
+
+        .chart-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+        .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 768px) { .chart-row { grid-template-columns: 1fr; } }
+
+        .chart-container { position: relative; width: 100%; background-color: var(--bg-base); border-radius: 8px; padding: 15px; border: 1px solid var(--border); }
+        .chart-container h4 { margin-bottom: 15px; color: var(--text-muted); font-size: 0.9rem; text-align: center; }
+        
+        button.btn-primary { background-color: var(--accent); color: white; border: none; padding: 14px; border-radius: 6px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 10px; transition: 0.2s; }
+        button.btn-primary:hover { background-color: var(--accent-hover); box-shadow: 0 0 15px rgba(59, 130, 246, 0.4); }
+
+        .slider-container { margin: 30px 0; padding: 25px; background-color: var(--bg-input); border-radius: 8px; }
+        .slider-labels { display: flex; justify-content: space-between; margin-bottom: 15px; font-weight: bold; font-size: 1.1rem; }
+        input[type="range"] { width: 100%; accent-color: var(--accent); cursor: pointer; height: 6px; border-radius: 5px; }
+
+        /* Tarjetas de Métricas Rápidas */
+        .risk-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 25px; }
+        .risk-card { background-color: var(--bg-input); padding: 20px; border-radius: 8px; text-align: center; border: 1px solid var(--border); }
+        .risk-card h3 { font-size: 1.5rem; margin: 10px 0; }
+        .risk-card p { font-size: 0.8rem; color: var(--text-muted); line-height: 1.4; }
+        .status-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; margin-top: 10px;}
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    
+    <div style="text-align: center; margin-bottom: 10px;">
+        <h1 style="color: var(--text-main); font-size: 2.5rem; letter-spacing: 2px; margin-bottom: 5px;">ORCA</h1>
+        <h3 style="color: var(--text-muted); font-weight: 400; margin-bottom: 5px;">Calculadora de Finanzas Personales</h3>
+        <p style="color: var(--accent); font-size: 0.95rem; font-weight: bold;">Agustin Leiva Retamal</p>
+    </div>
+
+    <div class="summary-header">
+        <div class="summary-card" style="border-color: var(--success);">
+            <span>Ingresos Mensuales</span>
+            <h2 id="tot-ingresos" style="color: var(--success);">$0</h2>
+        </div>
+        <div class="summary-card" style="border-color: var(--danger);">
+            <span>Gastos Mensuales</span>
+            <h2 id="tot-gastos" style="color: var(--danger);">$0</h2>
+        </div>
+        <div class="summary-card" style="border-color: var(--accent);">
+            <span>Flujo de Caja Libre</span>
+            <h2 id="tot-resto" style="color: var(--text-main);">$0</h2>
+            <div class="sub-metric" id="ratio-ahorro">Tasa de Ahorro: 0%</div>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="openTab('flujo')">1. Flujos de Caja</button>
+        <button class="tab-btn" onclick="openTab('distribucion')">2. Metas & Asignación</button>
+        <button class="tab-btn" onclick="openTab('proyeccion')">3. Proyecciones</button>
+        <button class="tab-btn" onclick="openTab('riesgo')">4. Gestión de Riesgo</button>
+    </div>
+
+    <div id="flujo" class="tab-content active">
+        <div class="panel-inputs" style="margin-bottom: 20px; max-width: 400px; border-left: 4px solid var(--success);">
+            <label>Capital Base Actual (Ahorros ya acumulados) 💰</label>
+            <input type="number" id="inp-cap-inicial" value="5000" oninput="calcularTotales()">
+            <small style="color: var(--text-muted);">Este valor ancla tu fondo de emergencia real y el año 0 de tus proyecciones.</small>
+        </div>
+
+        <div class="chart-row">
+            <div>
+                <h3 style="margin-bottom: 15px; color: var(--success);">Inflows (Ingresos)</h3>
+                <ul id="lista-ingresos" class="dynamic-list"></ul>
+                <button class="btn-add" onclick="agregarItem('ingresos')">+ Nuevo Ingreso</button>
+            </div>
+            <div>
+                <h3 style="margin-bottom: 15px; color: var(--danger);">Outflows (Gastos Fijos/Variables)</h3>
+                <ul id="lista-gastos" class="dynamic-list"></ul>
+                <button class="btn-add" onclick="agregarItem('gastos')">+ Nuevo Gasto</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="distribucion" class="tab-content">
+        <h3>Política de Inversión vs Liquidez</h3>
+        <p style="color: var(--text-muted); margin-top: 5px;">Define qué harás con tu Flujo Libre ($<span id="label-resto">0</span>/mes).</p>
+        
+        <div class="slider-container">
+            <div class="slider-labels">
+                <span style="color: var(--accent);">Target de Inversión: <span id="lbl-inv-pct">70</span>% ($<span id="lbl-inv-val">0</span>/m)</span>
+                <span style="color: var(--warning);">Capital de Ocio/Libre: <span id="lbl-ocio-pct">30</span>% ($<span id="lbl-ocio-val">0</span>/m)</span>
+            </div>
+            <input type="range" id="slider-inversion" min="0" max="100" value="70" oninput="actualizarDistribucion()">
+        </div>
+
+        <h4 style="color: var(--text-main); margin-top: 20px;">Objetivos de Inversión (Metas)</h4>
+        <ul id="lista-metas" class="dynamic-list" style="margin-top: 10px; max-width: 600px;"></ul>
+        <button class="btn-add" onclick="agregarMeta()" style="max-width: 600px;">+ Definir Nueva Meta</button>
+    </div>
+
+    <div id="proyeccion" class="tab-content">
+        <div class="grid-layout">
+            <div class="panel-inputs">
+                <div><label>Horizonte Temporal (Años)</label><input type="number" id="inp-anos" value="10" min="1"></div>
+                <div><label>Retorno Esperado Anual (%)</label><input type="number" id="inp-interes" value="10" step="0.1"></div>
+                <div><label>Volatilidad del Activo (σ %) <span title="Ej: SPY ~15%, Bonos ~5%">ℹ️</span></label><input type="number" id="inp-volatilidad" value="15" step="0.1"></div>
+                <div><label>Inflación Anual (%)</label><input type="number" id="inp-inflacion" value="2" step="0.1"></div>
+                <button class="btn-primary" onclick="correrModelos()">Ejecutar Simulación</button>
+            </div>
+
+            <div class="chart-grid">
+                <div class="chart-container" style="height: 380px;">
+                    <h4>Monte Carlo: Proyección de Capital vs Metas</h4>
+                    <canvas id="monteCarloChart"></canvas>
+                </div>
+                <div class="chart-container" style="height: 300px;">
+                    <h4>Composición del Capital Base vs Interés</h4>
+                    <canvas id="aportesChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="riesgo" class="tab-content">
+        
+        <div class="risk-cards">
+            <div class="risk-card" style="border-top: 3px solid var(--success);">
+                <span style="color: var(--text-muted); font-size: 0.85rem; font-weight: 600;">Runway (Fondo de Emergencia)</span>
+                <h3 id="runway-value" style="color: var(--text-main);">--</h3>
+                <p>Meses que podés sobrevivir pagando tus gastos actuales únicamente con el <b>Capital Base Actual</b> ingresado.</p>
+                <div id="runway-badge" class="status-badge">Calculando...</div>
+            </div>
+            <div class="risk-card" style="border-top: 3px solid var(--accent);">
+                <span style="color: var(--text-muted); font-size: 0.85rem; font-weight: 600;">Análisis 50/30/20</span>
+                <h3 id="regla-value" style="color: var(--text-main);">-- / -- / --</h3>
+                <p>Distribución real de tus ingresos entre: Necesidades (Gastos), Deseos (Ocio) y Ahorro (Inversión).</p>
+                <div id="regla-badge" class="status-badge">Calculando...</div>
+            </div>
+            <div class="risk-card" style="border-top: 3px solid var(--warning);">
+                <span style="color: var(--text-muted); font-size: 0.85rem; font-weight: 600;">Ratio de Gasto (Burn Rate)</span>
+                <h3 id="burn-value" style="color: var(--warning);">--</h3>
+                <p>Porcentaje de tus ingresos que se evapora en gastos mensuales fijos y variables.</p>
+                <div id="burn-badge" class="status-badge">Calculando...</div>
+            </div>
+        </div>
+
+        <div class="chart-row">
+            <div class="chart-container" style="height: 350px;">
+                <h4>Estructura de Gastos</h4>
+                <canvas id="gastosPieChart"></canvas>
+            </div>
+            <div class="chart-container" style="height: 350px;">
+                <h4>Cash Flow Breakdown</h4>
+                <canvas id="flujoPieChart"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-container" style="height: 400px; margin-top: 20px;">
+            <h4>Distribución de Probabilidad del Capital Final (Campana de Gauss)</h4>
+            <p style="text-align: center; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px;">La zona roja representa el <b>Tail Risk (VaR 95%)</b>: el 5% de peores escenarios posibles.</p>
+            <canvas id="gaussChart"></canvas>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    let ingresos = [{ id: 1, nombre: 'Salario', monto: 3500 }];
+    let gastos = [
+        { id: 1, nombre: 'Alquiler', monto: 900 },
+        { id: 2, nombre: 'Comida', monto: 400 },
+        { id: 3, nombre: 'Servicios', monto: 150 }
+    ];
+    let metas = [{ id: 1, nombre: 'Viaje Europa', monto: 20000 }];
+    
+    // Eliminada la referencia a drawdown en el objeto charts
+    let charts = { monteCarlo: null, aportes: null, gastosPie: null, flujoPie: null, gauss: null };
+    let ultimosResultadosMonteCarlo = []; 
+    const chartColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
+
+    document.addEventListener('DOMContentLoaded', () => {
+        renderizarListas();
+        actualizarDistribucion();
+    });
+
+    function openTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        event.currentTarget.classList.add('active');
+
+        if(tabId === 'riesgo') {
+            actualizarMetricasRiesgo();
+            renderizarGraficosRiesgo();
+        }
+        if(tabId === 'proyeccion' && !charts.monteCarlo) correrModelos();
+    }
+
+    function agregarItem(t) { (t === 'ingresos' ? ingresos : gastos).push({ id: Date.now(), nombre: '', monto: 0 }); renderizarListas(); }
+    function eliminarItem(t, id) { if(t === 'ingresos') ingresos = ingresos.filter(i=>i.id!==id); else gastos = gastos.filter(i=>i.id!==id); renderizarListas(); }
+    function actualizarValor(t, id, c, v) { const arr = t === 'ingresos' ? ingresos : gastos; const i = arr.find(x=>x.id===id); if(i) { i[c] = c==='monto'?parseFloat(v)||0:v; calcularTotales(); } }
+    function agregarMeta() { metas.push({ id: Date.now(), nombre: '', monto: 0 }); renderizarListas(); }
+    function eliminarMeta(id) { metas = metas.filter(m=>m.id!==id); renderizarListas(); }
+    function actualizarMeta(id, c, v) { const m = metas.find(x=>x.id===id); if(m) m[c] = c==='monto'?parseFloat(v)||0:v; }
+
+    function renderizarListas() {
+        const genHtml = (arr, t) => arr.map(i => `<li class="dynamic-item"><input type="text" placeholder="Concepto..." value="${i.nombre}" oninput="actualizarValor('${t}', ${i.id}, 'nombre', this.value)"><input type="number" placeholder="USD" value="${i.monto||''}" oninput="actualizarValor('${t}', ${i.id}, 'monto', this.value)"><button class="btn-remove" onclick="eliminarItem('${t}', ${i.id})">✖</button></li>`).join('');
+        document.getElementById('lista-ingresos').innerHTML = genHtml(ingresos, 'ingresos');
+        document.getElementById('lista-gastos').innerHTML = genHtml(gastos, 'gastos');
+        document.getElementById('lista-metas').innerHTML = metas.map(m => `<li class="dynamic-item"><input type="text" placeholder="Meta..." value="${m.nombre}" oninput="actualizarMeta(${m.id}, 'nombre', this.value)"><input type="number" placeholder="USD" value="${m.monto||''}" oninput="actualizarMeta(${m.id}, 'monto', this.value)"><button class="btn-remove" onclick="eliminarMeta(${m.id})">✖</button></li>`).join('');
+        calcularTotales();
+    }
+
+    function calcularTotales() {
+        const totI = ingresos.reduce((s, i) => s + i.monto, 0);
+        const totG = gastos.reduce((s, i) => s + i.monto, 0);
+        const resto = totI - totG;
+        const ratio = totI > 0 ? ((totI - totG) / totI) * 100 : 0;
+        document.getElementById('tot-ingresos').innerText = `$${totI.toLocaleString()}`;
+        document.getElementById('tot-gastos').innerText = `$${totG.toLocaleString()}`;
+        document.getElementById('tot-resto').innerText = `$${resto.toLocaleString()}`;
+        document.getElementById('label-resto').innerText = resto.toLocaleString();
+        document.getElementById('ratio-ahorro').innerText = `Tasa de Ahorro: ${ratio.toFixed(1)}%`;
+        actualizarDistribucion();
+    }
+
+    function actualizarDistribucion() {
+        const totI = ingresos.reduce((s, i) => s + i.monto, 0);
+        const totG = gastos.reduce((s, i) => s + i.monto, 0);
+        const resto = Math.max(0, totI - totG);
+        const invPct = parseFloat(document.getElementById('slider-inversion').value);
+        document.getElementById('lbl-inv-pct').innerText = invPct;
+        document.getElementById('lbl-ocio-pct').innerText = 100 - invPct;
+        document.getElementById('lbl-inv-val').innerText = (resto * (invPct/100)).toFixed(0).toLocaleString();
+        document.getElementById('lbl-ocio-val').innerText = (resto * ((100-invPct)/100)).toFixed(0).toLocaleString();
+        if(document.getElementById('riesgo').classList.contains('active')) actualizarMetricasRiesgo();
+    }
+
+    // --- MATH & MONTE CARLO ---
+    function randomNormal() { let u=0, v=0; while(u===0) u=Math.random(); while(v===0) v=Math.random(); return Math.sqrt(-2.0*Math.log(u))*Math.cos(2.0*Math.PI*v); }
+    function calcMean(arr) { return arr.reduce((a,b)=>a+b,0)/arr.length; }
+    function calcStd(arr, mean) { return Math.sqrt(arr.reduce((a,b)=>a+Math.pow(b-mean,2),0)/arr.length); }
+    function normalPDF(x, mean, std) { return (1/(std*Math.sqrt(2*Math.PI))) * Math.exp(-0.5*Math.pow((x-mean)/std, 2)); }
+
+    function correrModelos() {
+        const anos = parseInt(document.getElementById('inp-anos').value) || 10;
+        const intNominal = parseFloat(document.getElementById('inp-interes').value) || 0;
+        const volatilidad = parseFloat(document.getElementById('inp-volatilidad').value) / 100 || 0;
+        const inflacion = parseFloat(document.getElementById('inp-inflacion').value) || 0;
+        const capInicial = parseFloat(document.getElementById('inp-cap-inicial').value) || 0;
+        
+        const retReal = ((1 + intNominal/100) / (1 + inflacion/100)) - 1;
+        const totI = ingresos.reduce((s, i) => s + i.monto, 0);
+        const totG = gastos.reduce((s, i) => s + i.monto, 0);
+        const invPct = parseFloat(document.getElementById('slider-inversion').value) / 100;
+        const aportesAnuales = (Math.max(0, totI - totG) * invPct) * 12;
+
+        const numSim = 150; 
+        const escenarios = [];
+        ultimosResultadosMonteCarlo = [];
+        const labels = Array.from({length: anos + 1}, (_, i) => `Año ${i}`);
+
+        for (let i = 0; i < numSim; i++) {
+            let cap = capInicial;
+            let path = [cap];
+            
+            for (let t = 1; t <= anos; t++) {
+                const shock = randomNormal() * volatilidad;
+                cap = (cap + aportesAnuales) * (1 + retReal + shock);
+                cap = Math.max(0, cap);
+                path.push(cap);
+            }
+            escenarios.push(path);
+            ultimosResultadosMonteCarlo.push(cap);
+        }
+
+        let arrayCapEsperado = [capInicial], arrayAportesAcum = [capInicial], capD = capInicial, aportesD = capInicial;
+        for (let t = 1; t <= anos; t++) {
+            aportesD += aportesAnuales;
+            capD = (capD + aportesAnuales) * (1 + retReal);
+            arrayAportesAcum.push(aportesD);
+            arrayCapEsperado.push(capD);
+        }
+
+        dibujarMonteCarlo(labels, escenarios, arrayCapEsperado);
+        dibujarComposicion(labels, arrayAportesAcum, arrayCapEsperado);
+        
+        if(document.getElementById('riesgo').classList.contains('active')) {
+            actualizarMetricasRiesgo();
+            renderizarGraficosRiesgo();
+        }
+    }
+
+    // --- GRÁFICOS DE PROYECCIÓN ---
+    function dibujarMonteCarlo(labels, escenarios, promedio) {
+        if(charts.monteCarlo) charts.monteCarlo.destroy();
+        const ctx = document.getElementById('monteCarloChart').getContext('2d');
+        const datasets = [];
+        metas.forEach((m, idx) => {
+            if(m.monto > 0) datasets.push({ label: `Meta: ${m.nombre}`, data: Array(labels.length).fill(m.monto), borderColor: chartColors[idx % chartColors.length], borderWidth: 2, borderDash: [5, 5], pointRadius: 0, fill: false, order: 1 });
+        });
+        datasets.push({ label: 'Retorno Esperado (Promedio)', data: promedio, borderColor: '#10b981', borderWidth: 3, pointRadius: 0, fill: false, order: 2 });
+        escenarios.forEach((esc, index) => { datasets.push({ label: `Sim ${index}`, data: esc, borderColor: 'rgba(161, 161, 170, 0.05)', borderWidth: 1, pointRadius: 0, fill: false, order: 3 }); });
+
+        charts.monteCarlo = new Chart(ctx, {
+            type: 'line', data: { labels, datasets },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#a1a1aa', filter: item => !item.text.includes('Sim ') } } }, scales: { x: { ticks: { color: '#a1a1aa' }, grid: { color: '#3f3f46' } }, y: { ticks: { color: '#a1a1aa', callback: v => '$' + v.toLocaleString() }, grid: { color: '#3f3f46' } } } }
+        });
+    }
+
+    function dibujarComposicion(labels, aportesAcum, capEsperado) {
+        if(charts.aportes) charts.aportes.destroy();
+        const ctx = document.getElementById('aportesChart').getContext('2d');
+        const interesAcum = capEsperado.map((c, i) => Math.max(0, c - aportesAcum[i]));
+        charts.aportes = new Chart(ctx, {
+            type: 'bar',
+            data: { labels, datasets: [{ label: 'Capital Total Aportado', data: aportesAcum, backgroundColor: 'rgba(59, 130, 246, 0.8)' }, { label: 'Interés Generado', data: interesAcum, backgroundColor: 'rgba(16, 185, 129, 0.8)' }] },
+            options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true, grid: { display: false }, ticks: { color: '#a1a1aa' } }, y: { stacked: true, grid: { color: '#3f3f46' }, ticks: { color: '#a1a1aa', callback: v => '$' + v.toLocaleString() } } }, plugins: { legend: { labels: { color: '#a1a1aa' } } } }
+        });
+    }
+
+    // --- GESTIÓN DE RIESGO Y CAMPANA DE GAUSS ---
+    function actualizarMetricasRiesgo() {
+        const totI = ingresos.reduce((s, i) => s + i.monto, 0);
+        const totG = gastos.reduce((s, i) => s + i.monto, 0);
+        const capInicial = parseFloat(document.getElementById('inp-cap-inicial').value) || 0;
+        
+        // 1. Runway Real
+        const runwayMeses = totG > 0 ? (capInicial / totG) : 0;
+        document.getElementById('runway-value').innerText = runwayMeses === Infinity ? '∞' : runwayMeses.toFixed(1) + ' meses';
+        const bgRunway = document.getElementById('runway-badge');
+        if(runwayMeses >= 6) { bgRunway.innerText = 'Seguro (6+ meses)'; bgRunway.style.backgroundColor = 'rgba(16, 185, 129, 0.2)'; bgRunway.style.color = '#10b981'; }
+        else if(runwayMeses >= 3) { bgRunway.innerText = 'Moderado (3-6 meses)'; bgRunway.style.backgroundColor = 'rgba(245, 158, 11, 0.2)'; bgRunway.style.color = '#f59e0b'; }
+        else { bgRunway.innerText = 'Riesgo Crítico (< 3 meses)'; bgRunway.style.backgroundColor = 'rgba(239, 68, 68, 0.2)'; bgRunway.style.color = '#ef4444'; }
+
+        // 2. Regla 50/30/20
+        const invPctConfig = parseFloat(document.getElementById('slider-inversion').value) / 100;
+        const resto = Math.max(0, totI - totG);
+        const invVol = resto * invPctConfig;
+        const ocioVol = resto * (1 - invPctConfig);
+
+        const pctNec = totI > 0 ? (totG / totI * 100) : 0;
+        const pctOcio = totI > 0 ? (ocioVol / totI * 100) : 0;
+        const pctAhorro = totI > 0 ? (invVol / totI * 100) : 0;
+        
+        document.getElementById('regla-value').innerText = `${pctNec.toFixed(0)}% / ${pctOcio.toFixed(0)}% / ${pctAhorro.toFixed(0)}%`;
+        const bgRegla = document.getElementById('regla-badge');
+        if(pctNec <= 50 && pctAhorro >= 20) { bgRegla.innerText = 'Distribución Óptima'; bgRegla.style.backgroundColor = 'rgba(16, 185, 129, 0.2)'; bgRegla.style.color = '#10b981'; }
+        else { bgRegla.innerText = 'Requiere Ajuste'; bgRegla.style.backgroundColor = 'rgba(245, 158, 11, 0.2)'; bgRegla.style.color = '#f59e0b'; }
+
+        // 3. Burn Rate
+        document.getElementById('burn-value').innerText = pctNec.toFixed(1) + '%';
+        const bgBurn = document.getElementById('burn-badge');
+        if(pctNec < 60) { bgBurn.innerText = 'Sano'; bgBurn.style.backgroundColor = 'rgba(16, 185, 129, 0.2)'; bgBurn.style.color = '#10b981'; }
+        else if(pctNec < 85) { bgBurn.innerText = 'Alto'; bgBurn.style.backgroundColor = 'rgba(245, 158, 11, 0.2)'; bgBurn.style.color = '#f59e0b'; }
+        else { bgBurn.innerText = 'Peligro Inminente'; bgBurn.style.backgroundColor = 'rgba(239, 68, 68, 0.2)'; bgBurn.style.color = '#ef4444'; }
+    }
+
+    // Se ajustó el layout: { padding: 20 } en los gráficos de torta para encuadrarlos mejor
+    function renderizarGraficosRiesgo() {
+        if(charts.gastosPie) charts.gastosPie.destroy();
+        const ctxG = document.getElementById('gastosPieChart').getContext('2d');
+        const dataGastos = gastos.filter(g => g.monto > 0);
+        charts.gastosPie = new Chart(ctxG, { 
+            type: 'doughnut', 
+            data: { labels: dataGastos.map(g=>g.nombre), datasets: [{ data: dataGastos.map(g=>g.monto), backgroundColor: chartColors, borderColor: '#18181b', borderWidth: 2 }] }, 
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false, 
+                layout: { padding: 20 },
+                plugins: { legend: { position: 'right', labels: { color: '#a1a1aa', boxWidth: 12, font: {size: 11} } } }, 
+                cutout: '65%' 
+            } 
+        });
+
+        if(charts.flujoPie) charts.flujoPie.destroy();
+        const ctxF = document.getElementById('flujoPieChart').getContext('2d');
+        const totG = gastos.reduce((s, i) => s + i.monto, 0), totI = ingresos.reduce((s, i) => s + i.monto, 0);
+        const invPct = parseFloat(document.getElementById('slider-inversion').value) / 100;
+        const libre = Math.max(0, totI - totG);
+        charts.flujoPie = new Chart(ctxF, { 
+            type: 'doughnut', 
+            data: { labels: ['Gastos Fijos', 'Inversión', 'Ocio'], datasets: [{ data: [totG, libre*invPct, libre*(1-invPct)], backgroundColor: ['#ef4444', '#3b82f6', '#f59e0b'], borderColor: '#18181b', borderWidth: 2 }] }, 
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false, 
+                layout: { padding: 20 },
+                plugins: { legend: { position: 'right', labels: { color: '#a1a1aa', boxWidth: 12, font: {size: 11} } } }, 
+                cutout: '65%' 
+            } 
+        });
+
+        // DIBUJAR CAMPANA DE GAUSS (PDF)
+        dibujarGauss();
+    }
+
+    function dibujarGauss() {
+        if(ultimosResultadosMonteCarlo.length === 0) return;
+        if(charts.gauss) charts.gauss.destroy();
+
+        const data = ultimosResultadosMonteCarlo;
+        const mean = calcMean(data);
+        const std = calcStd(data, mean) || 1; // Prevenir división por cero
+
+        // Encontrar el VaR 95% (Percentil 5)
+        const sortedData = [...data].sort((a,b) => a-b);
+        const varValue = sortedData[Math.floor(sortedData.length * 0.05)];
+
+        // Generar puntos para el eje X (de -3 a +3 desviaciones estándar)
+        const minX = Math.max(0, mean - 3.5 * std);
+        const maxX = mean + 3.5 * std;
+        const step = (maxX - minX) / 100;
+        
+        let labelsDist = [];
+        let pdfDataAll = [];
+        let pdfDataTail = [];
+
+        for(let x = minX; x <= maxX; x += step) {
+            labelsDist.push(x);
+            const y = normalPDF(x, mean, std);
+            pdfDataAll.push(y);
+            
+            // Si el valor x es menor al VaR, lo ponemos en la serie roja de "Tail Risk"
+            if(x <= varValue) {
+                pdfDataTail.push(y);
+            } else {
+                pdfDataTail.push(null); // Para que no se dibuje fuera del VaR
+            }
+        }
+
+        const ctxG = document.getElementById('gaussChart').getContext('2d');
+        charts.gauss = new Chart(ctxG, {
+            type: 'line',
+            data: {
+                labels: labelsDist,
+                datasets: [
+                    {
+                        label: 'Zona de Tail Risk (VaR 95%)',
+                        data: pdfDataTail,
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.5)',
+                        fill: true,
+                        pointRadius: 0,
+                        borderWidth: 0
+                    },
+                    {
+                        label: 'Distribución Normal (Probabilidad de Capital)',
+                        data: pdfDataAll,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: true,
+                        pointRadius: 0,
+                        borderWidth: 2
+                    }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { labels: { color: '#a1a1aa' } },
+                    tooltip: {
+                        callbacks: {
+                            title: (ctx) => 'Capital: $' + Math.round(ctx[0].parsed.x).toLocaleString(),
+                            label: () => '' // Ocultar el valor Y (que es una densidad estadística abstracta)
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'linear',
+                        ticks: { color: '#a1a1aa', callback: v => '$' + Math.round(v).toLocaleString() },
+                        grid: { color: '#3f3f46' }
+                    },
+                    y: { display: false } // Ocultamos el eje Y porque la densidad no le dice mucho al usuario final
+                }
+            }
+        });
+    }
+
+</script>
+
+</body>
+</html>
